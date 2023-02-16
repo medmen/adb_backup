@@ -19,12 +19,23 @@
 #*/
 
 backup () {
-	for APP in $(adb shell pm list packages -3)
+	# reading data from a file
+	COUNT=1
+	FILE=${DEVICE}.txt
+	# check if target dir exists, create if not
+	if [ ! -d ./${DEVICE} ]; then
+		mkdir ./${DEVICE};
+	fi
+	
+	cat ${FILE} | while read LINE
 	do
-	  APP=$( echo ${APP} | sed "s/^package://")
-	  adb backup -f ${APP}.backup ${APP}
+		echo "Line $COUNT: $LINE"
+		APP=$( echo ${LINE} | sed "s/^package://")
+		# echo "TEST write ${DEVICE}/${APP}.backup"
+		adb backup -f ./${DEVICE}/${APP}.backup ${APP}
+		let "COUNT++"
 	done
-
+	echo "Finished processing the file"
 	return 1
 }
 
@@ -35,47 +46,72 @@ restore () {
 }
 
 dumplist () {
+	FILE=${DEVICE}.txt
+	# if a proper file exists, dont overwrite
+	if [[ -f "$FILE" ]]; then
+		echo "A dumplist for your Phone model exists already. To create a new one, delete or rename $FILE"
+		exit 1
+	fi
+	
+
 	let "i=0"
 	for APP in $(adb shell pm list packages -3)
 	do
 	  APP=$( echo ${APP} | sed "s/^package://")
-	  echo ${APP} >> pkglist.txt
+	  echo ${APP} >> ${FILE}
 	  let "i++"
 	done
-	echo "wrote $i packages to pkglist.txt"
+	echo "wrote $i packages to $FILE"
 
 	return 1
 }
 
-read -p "(d)ump, (b)ackup,(r)estore: " COMMAND
+main () {
+	# read connected phone
+	DEVICE=$(adb devices -l | sed "s/.*model\://" | awk 'FNR==2{print $1}')
+	if [[ -z "$DEVICE" ]]; then
+		echo "No Device attached"
+		exit 1
+	fi
 
-case $COMMAND in
-d)
-dumplist
-;;
-dump)
-dumplist
-;;
+	read -p "(d)ump, (b)ackup,(r)estore: " COMMAND
 
-b)
-backup
-;;
-backup)
-backup
-;;
+	case $COMMAND in
+		d)
+		dumplist
+		;;
+		dump)
+		dumplist
+		;;
 
-r)
-restore
-;;
-restore)
-restore
-;;
+		b)
+		backup
+		;;
+		backup)
+		backup
+		;;
 
-*)
-echo "dieses Kommando kenne ich nicht - unknown command"
-exit 1
+		r)
+		restore
+		;;
+		restore)
+		restore
+		;;
 
-esac
+		q)
+		echo "see you soon"
+		exit 1
+		;;
+		quit)
+		quit
+		echo "see you soon"
+		exit 1
+		;;
 
+		*)
+		echo "dieses Kommando kenne ich nicht - unknown command"
+		exit 1
+	esac
+}
 
-
+main
